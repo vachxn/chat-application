@@ -1,5 +1,5 @@
 {% load static %}
-<!DOCTYPE html>
+
 <html>
 	<head>
 		<title>Chat</title>
@@ -13,10 +13,12 @@
 
     </head>
 	<body>
-    {% if user.is_authenticated %}
-        <h1 style="text-align: end; padding-right: 10px">Logged in as : {{ user.username }}</h1>
-        <input type="hidden" id="logged-in-user" value="{{ user.id }}">
-    {% endif %}
+
+   {% if user.is_authenticated %}
+    <h1 style="text-align: end; padding-right: 10px">Logged in as: {{ user.username }}</h1>
+    <input id="logged-in-user" type="hidden" id="logged-in-user" value="{{ user.id }}">
+{% endif %}
+
 		<div class="container-fluid h-100">
 			<div class="row justify-content-center h-100 ">
 				<div class="col-md-4 col-xl-3 chat h-100 mt-4">
