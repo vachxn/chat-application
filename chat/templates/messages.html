@@ -1,0 +1,199 @@
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat</title>
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/messages.css' %}">
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <a class="navbar-brand">Chat App</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ml-auto">
+                {% if user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-link">Welcome, {{ user.username }}</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'logout' %}">Logout</a>
+                    </li>
+                {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'login' %}">Login</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'signup' %}">Sign Up</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Chat Container -->
+    <div class="container-fluid h-100">
+        <div class="row justify-content-center h-100 mt-4">
+            <!-- Contacts Sidebar -->
+            <div class="col-md-4 col-xl-3 chat h-100">
+                <div class="card contacts_card">
+                    <div class="card-header">
+                        <div class="input-group">
+                            <input type="text" placeholder="Search..." class="form-control search">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text search_btn"><i class="fas fa-search"></i></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body contacts_body">
+                        <ul class="contacts">
+                            {% for user_info in users %}
+                                {% with other_user=user_info.user unread_count=user_info.unread_count %}
+                                <li class="contact-li d-flex align-items-center" onclick="openChat('{{ other_user.id }}', '{{ other_user.username }}')" style="cursor: pointer;">
+                                    <div class="d-flex bd-highlight w-100">
+                                        <div class="img_cont">
+                                            <img src="https://static.turbosquid.com/Preview/001292/481/WV/_D.jpg" class="rounded-circle user_img">
+                                            <span class="online_icon"></span>
+                                        </div>
+                                        <div class="user_info flex-grow-1">
+                                            <span>{{ other_user.username }}</span>
+                                            {% if unread_count > 0 %}
+                                                <span class="badge badge-danger">{{ unread_count }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </li>
+                                {% endwith %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Messages -->
+            <div class="col-md-8 col-xl-6 chat h-100">
+                <div class="card">
+                    <div class="messages-wrapper">
+                        <div class="card-header msg_head">
+                            <div class="d-flex bd-highlight">
+                                <div class="img_cont">
+                                    <img src="https://static.turbosquid.com/Preview/001292/481/WV/_D.jpg" class="rounded-circle user_img">
+                                    <span class="online_icon"></span>
+                                </div>
+                                <div class="user_info">
+                                    <span id="chat-username-placeholder">Select a user to chat</span>
+                                    <p id="message-count-placeholder">0 messages</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body msg_card_body"></div>
+                    </div>
+
+                    <!-- Message Input -->
+                    <div class="card-footer">
+                        <form id="messageForm" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <input type="hidden" name="receiver_id" id="receiver_id">
+                            <div class="input-group">
+                                <input type="text" id="message_input" class="form-control type_msg" placeholder="Type your message..." required>
+                                <input type="file" id="file_input" class="form-control-file ml-2">
+
+                                <!-- Voice Recording Button -->
+                                <button type="button" id="voiceBtn" class="btn btn-secondary ml-2">
+                                    <i class="fas fa-microphone"></i>
+                                </button>
+                                <input type="hidden" id="voice_data">
+
+                                <div class="input-group-append">
+                                    <button class="btn btn-secondary" type="submit">
+                                        <span class="input-group-text send_btn">
+                                            <i class="fas fa-location-arrow"></i>
+                                        </span>
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- jQuery & Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <!-- Chat JavaScript -->
+    <script>
+        function openChat(userId, username) {
+            document.getElementById("chat-username-placeholder").innerText = "Chat with " + username;
+            document.getElementById("receiver_id").value = userId;
+            fetchMessages(userId);
+        }
+
+        function fetchMessages(userId) {
+            $.ajax({
+                url: `/chat/${userId}/`,
+                type: "GET",
+                success: function (data) {
+                    $(".msg_card_body").html(data.messages.map(msg =>
+                        `<div class="d-flex ${msg.is_sender ? 'justify-content-end' : 'justify-content-start'}">
+                            <div class="msg_cotainer">
+                                ${msg.text}
+                                <span class="msg_time">${msg.timestamp}</span>
+                                ${msg.file_url ? `<br><a href="${msg.file_url}" target="_blank">Download File</a>` : ''}
+                                ${msg.voice_url ? `<br><audio controls src="${msg.voice_url}"></audio>` : ''}
+                            </div>
+                        </div>`
+                    ).join(""));
+                }
+            });
+        }
+
+        setInterval(function () {
+            let chatUserId = $("#receiver_id").val();
+            if (chatUserId) {
+                fetchMessages(chatUserId);
+            }
+        }, 3000);
+
+        $("#messageForm").submit(function (event) {
+            event.preventDefault();
+
+            let receiverId = $("#receiver_id").val();
+            let messageContent = $("#message_input").val();
+            let fileData = $("#file_input")[0].files[0];
+            let voiceData = $("#voice_data").val();
+            let csrfToken = $("input[name=csrfmiddlewaretoken]").val();
+            let formData = new FormData();
+
+            formData.append("receiver_id", receiverId);
+            formData.append("message", messageContent);
+            formData.append("file", fileData);
+            formData.append("voice", voiceData);
+            formData.append("csrfmiddlewaretoken", csrfToken);
+
+            $.ajax({
+                url: "{% url 'send_message' %}",
+                type: "POST",
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function () {
+                    $("#message_input").val("");
+                    $("#file_input").val("");
+                    fetchMessages(receiverId);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
